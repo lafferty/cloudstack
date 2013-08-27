@@ -2383,10 +2383,10 @@ public class NfsSecondaryStorageResource extends ServerResourceBase implements S
     protected void ensureLocalRootPathExists(String localRootPath, URI uri) {
         s_logger.debug("making available " + localRootPath + " on " + uri.toString());
         File file = new File(localRootPath);
-        s_logger.debug("local folder for mount will be " + file.toPath().toAbsolutePath());
+        s_logger.debug("local folder for mount will be " + file.getPath());
         if (!file.exists()) {
-            s_logger.debug("create mount point: " + file.toPath().toAbsolutePath().toString());
-            _storage.mkdir(file.toPath().toAbsolutePath().toString());
+            s_logger.debug("create mount point: " + file.getPath());
+            _storage.mkdir(file.getPath());
 
             // Need to check after mkdir to allow O/S to complete operation
             if (!file.exists()) {

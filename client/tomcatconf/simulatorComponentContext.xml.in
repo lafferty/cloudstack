@@ -103,6 +103,7 @@
     <property name="Adapters">
       <list>
         <ref bean="SimulatorDiscoverer"/>
+        <ref bean="HypervServerDiscoverer"/>
         <ref bean="SimulatorSecondaryDiscoverer"/>
         <ref bean="XcpServerDiscoverer"/>
         <ref bean="SecondaryStorageDiscoverer"/>

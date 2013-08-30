@@ -16,31 +16,38 @@
 // under the License.
 package com.cloud.hypervisor.hyperv.test;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.Assert;
-
 import java.io.BufferedWriter;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.util.ArrayList;
-import java.util.List;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.net.URL;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import javax.naming.ConfigurationException;
 
-import com.cloud.agent.api.Answer;
+import org.apache.log4j.Logger;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
+import com.google.gson.Gson;
+
+import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
+
+import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.Command;
 import com.cloud.agent.api.CreateStoragePoolCommand;
 import com.cloud.agent.api.DeleteStoragePoolCommand;
@@ -55,32 +62,23 @@ import com.cloud.agent.api.StartAnswer;
 import com.cloud.agent.api.StartCommand;
 import com.cloud.agent.api.StartupCommand;
 import com.cloud.agent.api.StartupRoutingCommand;
+import com.cloud.agent.api.StartupRoutingCommand.VmState;
 import com.cloud.agent.api.StartupStorageCommand;
 import com.cloud.agent.api.StopAnswer;
 import com.cloud.agent.api.StopCommand;
-import com.cloud.agent.api.StartupRoutingCommand.VmState;
-import com.cloud.agent.api.storage.PrimaryStorageDownloadAnswer;
-import com.cloud.agent.api.storage.PrimaryStorageDownloadCommand;
-
 import com.cloud.agent.api.storage.CreateAnswer;
 import com.cloud.agent.api.storage.CreateCommand;
 import com.cloud.agent.api.storage.DestroyCommand;
+import com.cloud.agent.api.storage.PrimaryStorageDownloadAnswer;
+import com.cloud.agent.api.storage.PrimaryStorageDownloadCommand;
 import com.cloud.hypervisor.Hypervisor;
 import com.cloud.hypervisor.hyperv.resource.HypervDirectConnectResource;
-
-import org.apache.log4j.Logger;
-
 import com.cloud.network.Networks.RouterPrivateIpStrategy;
 import com.cloud.serializer.GsonHelper;
 import com.cloud.storage.Storage;
-
-import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
-
 import com.cloud.storage.Storage.StoragePoolType;
 import com.cloud.utils.PropertiesUtil;
 import com.cloud.utils.exception.CloudRuntimeException;
-
-import com.google.gson.Gson;
 
 /**
  * Functional test suit for Hyper-V plugin.
@@ -93,6 +91,7 @@ public class HypervDirectConnectResourceTest {
             .getLogger(HypervDirectConnectResourceTest.class.getName());
 
     // TODO: make this a config parameter
+    private static final String sampleLegitDiskImageURL = "http://s3-eu-west-1.amazonaws.com/cshv3eu/SmallDisk.vhdx";
     private static final Gson s_gson = GsonHelper.getGson();
     private static final HypervDirectConnectResource s_hypervresource =
             new HypervDirectConnectResource();
@@ -148,7 +147,7 @@ public class HypervDirectConnectResourceTest {
         // Make sure secondary store is available.
         File testSecondarStoreDir = new File(s_testSecondaryStoreLocalPath);
         if (!testSecondarStoreDir.exists()) {
-            testSecondarStoreDir.mkdir();
+            testSecondarStoreDir.mkdirs();
         }
         Assert.assertTrue("Need to be able to create the folder "
                 + s_testSecondaryStoreLocalPath,
@@ -164,6 +163,9 @@ public class HypervDirectConnectResourceTest {
 
         // Clean up old test files in local storage folder:
         File testPoolDir = new File(s_testLocalStorePath);
+        if (!testPoolDir.exists()) {
+            testPoolDir.mkdirs();
+        }
         Assert.assertTrue(
                 "To simulate local file system Storage Pool, "
                         + " you need folder at "
@@ -180,9 +182,20 @@ public class HypervDirectConnectResourceTest {
         File testVolWorks =
                 new File(s_testLocalStorePath + File.separator
                         + s_testSampleVolumeWorkingUUID);
+        if (!testVolWorks.exists()) {
+            ReadableByteChannel rbc;
+            try {
+                URL sampleLegitDiskImageURL = new URL("http://s3-eu-west-1.amazonaws.com/cshv3eu/SmallDisk.vhdx");
+                rbc = Channels.newChannel(sampleLegitDiskImageURL.openStream());
+                FileOutputStream fos = new FileOutputStream(testVolWorks);
+                fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+		}
         Assert.assertTrue(
-                "Create a corrupt virtual disk (by changing extension of vhdx"
-                        + " to vhd) at "
+                "Need to put a sample working virtual disk at "
                         + testVolWorks.getPath(), testVolWorks.exists());
         try {
             s_testSampleVolumeWorkingURIJSON =
@@ -193,6 +206,7 @@ public class HypervDirectConnectResourceTest {
         }
 
         FilenameFilter vhdsFilt = new FilenameFilter() {
+            @Override
             public boolean accept(final File directory, final String fileName) {
                 return fileName.endsWith(".vhdx") || fileName.endsWith(".vhd");
             }
@@ -783,6 +797,7 @@ public class HypervDirectConnectResourceTest {
                     + "\"dom0MinMemory\":%s,"
                     + "\"poolSync\":false,"
                     + "\"vms\":{},"
+                    + "\"caps\":\"hvm\","
                     + "\"hypervisorType\":\"Hyperv\","
                     + "\"hostDetails\":{"
                     + "\"com.cloud.network.Networks.RouterPrivateIpStrategy\":"
@@ -850,7 +865,7 @@ public class HypervDirectConnectResourceTest {
                         s_gson.toJson((String) params
                                 .get("DefaultVirtualDiskFolder")),
                         s_gson.toJson(totalSpace),
-                        s_gson.toJson(totalSpace - usableCapacity)
+                        s_gson.toJson(usableCapacity)
                         );
     }
 

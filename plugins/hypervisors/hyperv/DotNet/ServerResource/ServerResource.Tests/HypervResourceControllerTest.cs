@@ -31,8 +31,11 @@ namespace ServerResource.Tests
     [TestClass]
     public class HypervResourceControllerTest
     {
+        protected static string testCifsUrl = AgentSettings.Default.testCifsUrl;
+        protected static string testCifsPath = AgentSettings.Default.testCifsPath;
         protected static String testPrimaryDataStoreHost = HypervResourceController.config.StorageIpAddress;
         protected static String testS3TemplateName = AgentSettings.Default.testS3TemplateName;
+        protected static String testCifsTemplateName = AgentSettings.Default.testS3TemplateName;
         protected static String testSystemVMTemplateName = AgentSettings.Default.testSystemVMTemplateName;
         protected static String testSystemVMTemplateNameNoExt = AgentSettings.Default.testSystemVMTemplateNameNoExt;
         protected static String testLocalStoreUUID = "5fe2bad3-d785-394e-9949-89786b8a63d2";
@@ -202,25 +205,26 @@ namespace ServerResource.Tests
             newFile.Delete();
         }
 
-	    private string samplePrimaryDownloadCommand() {
-		    String cmdJson = "{\"localPath\":" +testLocalStorePathJSON +
-                    ",\"poolUuid\":\"" + testLocalStoreUUID + "\",\"poolId\":201," + 
-    			    "\"secondaryStorageUrl\":\"nfs://10.70.176.36/mnt/cshv3/secondarystorage\"," +
-    			    "\"primaryStorageUrl\":\"nfs://"+HypervResourceController.config.StorageIpAddress+"E:\\\\Disks\\\\Disks\"," + 
-    			    "\"url\":\"nfs://10.70.176.36/mnt/cshv3/secondarystorage/template/tmpl//2/204//af39aa7f-2b12-37e1-86d3-e23f2f005101.vhdx\","+
-    			    "\"format\":\"VHDX\",\"accountId\":2,\"name\":\"204-2-5a1db1ac-932b-3e7e-a0e8-5684c72cb862\"" +
-    			    ",\"contextMap\":{},\"wait\":10800}";
+        private string samplePrimaryDownloadCommand()
+        {
+            String cmdJson = "{\"localPath\":" + testLocalStorePathJSON +
+                    ",\"poolUuid\":\"" + testLocalStoreUUID + "\",\"poolId\":201," +
+                    "\"secondaryStorageUrl\":\"nfs://10.70.176.36/mnt/cshv3/secondarystorage\"," +
+                    "\"primaryStorageUrl\":\"nfs://" + HypervResourceController.config.StorageIpAddress + "E:\\\\Disks\\\\Disks\"," +
+                    "\"url\":\"nfs://10.70.176.36/mnt/cshv3/secondarystorage/template/tmpl//2/204//af39aa7f-2b12-37e1-86d3-e23f2f005101.vhdx\"," +
+                    "\"format\":\"VHDX\",\"accountId\":2,\"name\":\"204-2-5a1db1ac-932b-3e7e-a0e8-5684c72cb862\"" +
+                    ",\"contextMap\":{},\"wait\":10800}";
             return cmdJson;
-	    }
-    
-	    public string CreateCommandSample()
-	    {
-            String sample = "{\"volId\":17,\"pool\":{\"id\":201,\"uuid\":\"" + testLocalStoreUUID + "\",\"host\":\""+HypervResourceController.config.StorageIpAddress+"\"" +
-						    ",\"path\":"+testLocalStorePathJSON+",\"port\":0,\"type\":\"Filesystem\"},\"diskCharacteristics\":{\"size\":0," +
-						    "\"tags\":[],\"type\":\"ROOT\",\"name\":\"ROOT-15\",\"useLocalStorage\":true,\"recreatable\":true,\"diskOfferingId\":11," +
-						    "\"volumeId\":17,\"hyperType\":\"Hyperv\"},\"templateUrl\":"+ testSampleTemplateURLJSON +",\"wait\":0}";
+        }
+
+        public string CreateCommandSample()
+        {
+            String sample = "{\"volId\":17,\"pool\":{\"id\":201,\"uuid\":\"" + testLocalStoreUUID + "\",\"host\":\"" + HypervResourceController.config.StorageIpAddress + "\"" +
+                            ",\"path\":" + testLocalStorePathJSON + ",\"port\":0,\"type\":\"Filesystem\"},\"diskCharacteristics\":{\"size\":0," +
+                            "\"tags\":[],\"type\":\"ROOT\",\"name\":\"ROOT-15\",\"useLocalStorage\":true,\"recreatable\":true,\"diskOfferingId\":11," +
+                            "\"volumeId\":17,\"hyperType\":\"Hyperv\"},\"templateUrl\":" + testSampleTemplateURLJSON + ",\"wait\":0}";
             return sample;
-	    }
+        }
 
         [TestMethod]
         public void TestDestroyCommand()
@@ -257,17 +261,17 @@ namespace ServerResource.Tests
             // TODO: Need sample to update the test.
             // Arrange
             String createCmd = "{\"volId\":10,\"pool\":{\"id\":201,\"uuid\":\"" + testLocalStoreUUID + "\",\"host\":\"" + HypervResourceController.config.StorageIpAddress + "\"" +
-    					    ",\"path\":"+testLocalStorePathJSON+",\"port\":0,\"type\":\"Filesystem\"},\"diskCharacteristics\":{\"size\":0," +
-    					    "\"tags\":[],\"type\":\"ROOT\",\"name\":\"ROOT-9\",\"useLocalStorage\":true,\"recreatable\":true,\"diskOfferingId\":11," +
-    					    "\"volumeId\":10,\"hyperType\":\"Hyperv\"},\"templateUrl\":"+testSampleTemplateURLJSON+",\"contextMap\":{},\"wait\":0}";
+                            ",\"path\":" + testLocalStorePathJSON + ",\"port\":0,\"type\":\"Filesystem\"},\"diskCharacteristics\":{\"size\":0," +
+                            "\"tags\":[],\"type\":\"ROOT\",\"name\":\"ROOT-9\",\"useLocalStorage\":true,\"recreatable\":true,\"diskOfferingId\":11," +
+                            "\"volumeId\":10,\"hyperType\":\"Hyperv\"},\"templateUrl\":" + testSampleTemplateURLJSON + ",\"contextMap\":{},\"wait\":0}";
             dynamic jsonCreateCmd = JsonConvert.DeserializeObject(createCmd);
             HypervResourceController rsrcServer = new HypervResourceController();
 
-        	Assert.IsTrue(Directory.Exists(testLocalStorePath));
+            Assert.IsTrue(Directory.Exists(testLocalStorePath));
             string filePath = Path.Combine(testLocalStorePath, (string)JsonConvert.DeserializeObject(testSampleTemplateURLJSON));
-        	Assert.IsTrue(File.Exists(filePath), "The template we make volumes from is missing from path " + filePath);
+            Assert.IsTrue(File.Exists(filePath), "The template we make volumes from is missing from path " + filePath);
             int fileCount = Directory.GetFiles(testLocalStorePath).Length;
-    	    s_logger.Debug(" test local store has " + fileCount + "files");
+            s_logger.Debug(" test local store has " + fileCount + "files");
 
             // Act
             // Test requires there to be a template at the tempalteUrl, which is its location in the local file system.
@@ -276,7 +280,7 @@ namespace ServerResource.Tests
             JObject ansAsProperty2 = jsonResult[0];
             dynamic ans = ansAsProperty2.GetValue(CloudStackTypes.CreateAnswer);
             Assert.IsNotNull(ans, "Should be an answer object of type CreateAnswer");
-    	    Assert.IsTrue((bool)ans.result, "Failed to CreateCommand due to "  + (string)ans.result);
+            Assert.IsTrue((bool)ans.result, "Failed to CreateCommand due to " + (string)ans.result);
             Assert.AreEqual(Directory.GetFiles(testLocalStorePath).Length, fileCount + 1);
             FileInfo newFile = new FileInfo((string)ans.volume.path);
             Assert.IsTrue(newFile.Length > 0, "The new file should have a size greater than zero");
@@ -345,6 +349,67 @@ namespace ServerResource.Tests
             return sample;
         }
 
+
+        [TestMethod]
+        public void TestCopyCommandFromCifs()
+        {
+            // Arrange
+            string sampleCopyCommandForTemplateDownload =
+            #region string_literal
+                // org.apache.cloudstack.storage.command.CopyCommand
+                "{\"srcTO\":" +
+                  "{\"org.apache.cloudstack.storage.to.TemplateObjectTO\":" +
+                    "{\"path\":\"" + testCifsPath + "\"," +
+                     "\"origUrl\":\"http://10.147.28.7/templates/5d67394c-4efd-4b62-966b-51aa53b35277.vhd.bz2\"," +
+                     "\"uuid\":\"7e4ca941-cb1b-4113-ab9e-043960d0fb10\"," +
+                     "\"id\":206," +
+                     "\"format\":\"VHDX\"," +
+                     "\"accountId\":2," +
+                     "\"checksum\":\"4b31e2846cc67fc10ea7281986519a54\"," +
+                     "\"hvm\":true," +
+                     "\"displayText\":\"OS031\"," +
+                     "\"imageDataStore\":" +
+                       "{\"com.cloud.agent.api.to.NfsTO\":" +
+                         "{\"_url\":\"" + testCifsUrl + "\"," + // Unique item here
+                         "\"_role\":\"Image\"}" +
+                       "}," + // end of imageDataStore
+                     "\"hypervisorType\":\"Hyperv\"," +
+                     "\"name\":\"" + testS3TemplateName + "\"}" +
+                  "}," + // end of srcTO
+                 "\"destTO\":" +
+                    "{\"org.apache.cloudstack.storage.to.TemplateObjectTO\":" +
+                        "{" +
+                        "\"origUrl\":\"http://10.147.28.7/templates/5d67394c-4efd-4b62-966b-51aa53b35277.vhd.bz2\"," +
+                        "\"uuid\":\"7e4ca941-cb1b-4113-ab9e-043960d0fb10\"," +
+                        "\"id\":206," +
+                        "\"format\":\"VHDX\"," +
+                        "\"accountId\":2," +
+                        "\"checksum\":\"4b31e2846cc67fc10ea7281986519a54\"," +
+                        "\"hvm\":true," +
+                        "\"displayText\":\"Test of CIFS Download\"," +
+                        "\"imageDataStore\":" + getSamplePrimaryDataStoreInfo() + "," + // end of imageDataStore
+                        "\"name\":\"" + testS3TemplateName + "\"," +
+                        "\"hypervisorType\":\"Hyperv\"}" +
+                    "}," +// end of destTO
+                "\"wait\":10800}"; // end of CopyCommand
+            #endregion
+
+            HypervResourceController rsrcServer;
+            dynamic jsonDownloadCopyCmd;
+            string dwnldDest;
+            dynamic jsonCloneCopyCmd;
+            string newVolName;
+            CopyCommandTestSetupCifs(null, sampleCopyCommandForTemplateDownload, out rsrcServer, out jsonDownloadCopyCmd, out dwnldDest, out jsonCloneCopyCmd, out newVolName);
+
+            // Act & Assert
+            DownloadTemplateToPrimaryStorage(rsrcServer, jsonDownloadCopyCmd, dwnldDest);
+
+            // Repeat to verify ability to detect existing file.
+            DownloadTemplateToPrimaryStorage(rsrcServer, jsonDownloadCopyCmd, dwnldDest);
+
+            File.Delete(dwnldDest);
+        }
+
         [TestMethod]
         public void TestCopyCommand()
         {
@@ -375,12 +440,12 @@ namespace ServerResource.Tests
                         "\"size\":52428800," +
                         "\"volumeId\":10," +
                         "\"vmName\":\"i-3-5-VM\"," +
-                        "\"accountId\":3,"+
+                        "\"accountId\":3," +
                         "\"id\":10 }" +
                     "}," +  // end of destTO 
                 "\"wait\":0}"; // end of Copy Command
-#endregion
-//"name":"ROOT-8","size":140616708,"volumeId":8,"vmName":"s-8-VM","accountId":1,"id":8}},"contextMap":{},"wait":0}
+            #endregion
+            //"name":"ROOT-8","size":140616708,"volumeId":8,"vmName":"s-8-VM","accountId":1,"id":8}},"contextMap":{},"wait":0}
 
             string sampleCopyCommandForTemplateDownload =
             #region string_literal
@@ -424,7 +489,7 @@ namespace ServerResource.Tests
                         "\"name\":\"" + testS3TemplateName + "\"}" +
                     "}," +// end of destTO
                 "\"wait\":10800}"; // end of CopyCommand
- #endregion 
+            #endregion
 
             HypervResourceController rsrcServer;
             dynamic jsonDownloadCopyCmd;
@@ -439,7 +504,7 @@ namespace ServerResource.Tests
 
             // Repeat to verify ability to detect existing file.
             DownloadTemplateToPrimaryStorage(rsrcServer, jsonDownloadCopyCmd, dwnldDest);
-        
+
             File.Delete(dwnldDest);
             File.Delete(newVolName);
         }
@@ -464,7 +529,7 @@ namespace ServerResource.Tests
             Assert.IsTrue(File.Exists(dwnldDest), "CopyCommand failed to generate " + dwnldDest);
         }
 
-                [TestMethod]
+        [TestMethod]
         public void TestCopyCommandBz2Img()
         {
             // Arrange
@@ -476,7 +541,7 @@ namespace ServerResource.Tests
                         "{" +
                         "\"origUrl\":\"http://people.apache.org/~bhaisaab/vms/ttylinux_pv.vhd\"," +
                         "\"uuid\":\"9873f1c0-bdcc-11e2-8baa-ea85dab5fcd0\"," +
-                        "\"id\":5,"+
+                        "\"id\":5," +
                         "\"format\":\"VHD\"," +
                         "\"accountId\":1," +
                         "\"checksum\":\"f613f38c96bf039f2e5cbf92fa8ad4f8\"," +
@@ -494,11 +559,11 @@ namespace ServerResource.Tests
                         "\"size\":52428800," +
                         "\"volumeId\":10," +
                         "\"vmName\":\"i-3-5-VM\"," +
-                        "\"accountId\":1,"+
+                        "\"accountId\":1," +
                         "\"id\":10}" +
                     "}," +  // end of destTO 
                 "\"wait\":0}"; // end of Copy Command
-#endregion
+            #endregion
 
             string sampleCopyCommandForTemplateDownload =
             #region string_literal
@@ -529,7 +594,7 @@ namespace ServerResource.Tests
                      "}," + // end of srcTO
                  "\"destTO\":" +
                     "{\"org.apache.cloudstack.storage.to.TemplateObjectTO\":" +
-                        "{"+
+                        "{" +
                         "\"origUrl\":\"http://10.147.28.7/templates/5d67394c-4efd-4b62-966b-51aa53b35277.vhd.bz2\"," +
                         "\"uuid\":\"7e4ca941-cb1b-4113-ab9e-043960d0fb10\"," +
                         "\"id\":206," +
@@ -542,7 +607,7 @@ namespace ServerResource.Tests
                         "\"name\":\"" + testSystemVMTemplateNameNoExt + "\"}" +
                     "}," +// end of destTO
                 "\"wait\":10800}"; // end of CopyCommand
- #endregion 
+            #endregion
 
             HypervResourceController rsrcServer;
             dynamic jsonDownloadCopyCmd;
@@ -559,30 +624,44 @@ namespace ServerResource.Tests
             File.Delete(newVolName);
         }
 
-                private static void CopyCommandTestSetup(string sampleCopyCommandToCreateVolumeFromTemplate, string sampleCopyCommandForTemplateDownload, out HypervResourceController rsrcServer, out dynamic jsonDownloadCopyCmd, out string dwnldDest, out dynamic jsonCloneCopyCmd, out string newVolName)
-                {
-                    rsrcServer = new HypervResourceController();
-                    jsonDownloadCopyCmd = JsonConvert.DeserializeObject(sampleCopyCommandForTemplateDownload);
-                    TemplateObjectTO dwnldTemplate = TemplateObjectTO.ParseJson(jsonDownloadCopyCmd.destTO);
-                    dwnldDest = dwnldTemplate.FullFileName;
+        private static void CopyCommandTestSetup(string sampleCopyCommandToCreateVolumeFromTemplate, string sampleCopyCommandForTemplateDownload, out HypervResourceController rsrcServer, out dynamic jsonDownloadCopyCmd, out string dwnldDest, out dynamic jsonCloneCopyCmd, out string newVolName)
+        {
+            rsrcServer = new HypervResourceController();
+            jsonDownloadCopyCmd = JsonConvert.DeserializeObject(sampleCopyCommandForTemplateDownload);
+            TemplateObjectTO dwnldTemplate = TemplateObjectTO.ParseJson(jsonDownloadCopyCmd.destTO);
+            dwnldDest = dwnldTemplate.FullFileName;
 
-                    jsonCloneCopyCmd = JsonConvert.DeserializeObject(sampleCopyCommandToCreateVolumeFromTemplate);
-                    VolumeObjectTO newVol = VolumeObjectTO.ParseJson(jsonCloneCopyCmd.destTO);
-                    newVol.format = dwnldTemplate.format;
-                    newVolName = dwnldTemplate.FullFileName;
+            jsonCloneCopyCmd = JsonConvert.DeserializeObject(sampleCopyCommandToCreateVolumeFromTemplate);
+            VolumeObjectTO newVol = VolumeObjectTO.ParseJson(jsonCloneCopyCmd.destTO);
+            newVol.format = dwnldTemplate.format;
+            newVolName = dwnldTemplate.FullFileName;
 
-                    if (File.Exists(dwnldDest))
-                    {
-                        File.Delete(dwnldDest);
-                    }
-                    if (File.Exists(newVolName))
-                    {
-                        File.Delete(newVolName);
-                    }
-                }
-        
+            if (File.Exists(dwnldDest))
+            {
+                File.Delete(dwnldDest);
+            }
+            if (File.Exists(newVolName))
+            {
+                File.Delete(newVolName);
+            }
+        }
 
-                [TestMethod]
+        private static void CopyCommandTestSetupCifs(string sampleCopyCommandToCreateVolumeFromTemplate, string sampleCopyCommandForTemplateDownload, out HypervResourceController rsrcServer, out dynamic jsonDownloadCopyCmd, out string dwnldDest, out dynamic jsonCloneCopyCmd, out string newVolName)
+        {
+            rsrcServer = new HypervResourceController();
+            jsonDownloadCopyCmd = JsonConvert.DeserializeObject(sampleCopyCommandForTemplateDownload);
+            TemplateObjectTO dwnldTemplate = TemplateObjectTO.ParseJson(jsonDownloadCopyCmd.destTO);
+            dwnldDest = dwnldTemplate.FullFileName;
+
+            if (File.Exists(dwnldDest))
+            {
+                File.Delete(dwnldDest);
+            }
+            newVolName = null;
+            jsonCloneCopyCmd = null;
+        }
+
+        [TestMethod]
         public void TestModifyStoragePoolCommand()
         {
             // Create dummy folder
@@ -653,7 +732,7 @@ namespace ServerResource.Tests
         public void MaintainCommand()
         {
             // Omit HostEnvironment object, as this is a series of settings currently not used.
-            var cmd = new {  };
+            var cmd = new { };
             JToken tok = JToken.FromObject(cmd);
             HypervResourceController controller = new HypervResourceController();
 
@@ -731,14 +810,14 @@ namespace ServerResource.Tests
         [TestMethod]
         public void GetStorageStatsCommand()
         {
-    	    // TODO:  Update sample data to unsure it is using correct info.
-    	    String sample = String.Format(
+            // TODO:  Update sample data to unsure it is using correct info.
+            String sample = String.Format(
             #region string_literal
-                "{{\"" +
-                "id\":{0},"+
+"{{\"" +
+                "id\":{0}," +
                 "\"localPath\":{1}," +
-    			"\"pooltype\":\"Filesystem\","+
-                "\"contextMap\":{{}},"+
+                "\"pooltype\":\"Filesystem\"," +
+                "\"contextMap\":{{}}," +
                 "\"wait\":0}}",
                 JsonConvert.SerializeObject(AgentSettings.Default.testLocalStoreUUID),
                 JsonConvert.SerializeObject(AgentSettings.Default.testLocalStorePath)
@@ -766,7 +845,7 @@ namespace ServerResource.Tests
             HypervResourceController controller = new HypervResourceController();
             string sample = string.Format(
             #region string_literal
-                    "{{" + 
+"{{" +
                     "\"hostGuid\":\"B4AE5970-FCBF-4780-9F8A-2D2E04FECC34-HypervResource\"," +
                     "\"hostName\":\"CC-SVR11\"," +
                     "\"hostId\":{0}," +
@@ -776,7 +855,7 @@ namespace ServerResource.Tests
             #endregion
             var cmd = JsonConvert.DeserializeObject(sample);
             JToken tok = JToken.FromObject(cmd);
- 
+
             // Act
             dynamic jsonResult = controller.GetHostStatsCommand(tok);
 
@@ -819,7 +898,7 @@ namespace ServerResource.Tests
             HypervResourceController controller = new HypervResourceController();
             String sampleStartupRoutingCommand =
             #region string_literal
-                    "[{\"" + CloudStackTypes.StartupRoutingCommand + "\":{" +
+ "[{\"" + CloudStackTypes.StartupRoutingCommand + "\":{" +
                     "\"cpus\":0," +
                     "\"speed\":0," +
                     "\"memory\":0," +
@@ -849,19 +928,19 @@ namespace ServerResource.Tests
             ulong memory_mb;
             ulong freememory;
             WmiCalls.GetMemoryResources(out memory_mb, out freememory);
-            memory_mb *=1024;
+            memory_mb *= 1024;
             long capacityBytes;
             long availableBytes;
             HypervResourceController.GetCapacityForLocalPath(WmiCalls.GetDefaultVirtualDiskFolder(),
                     out capacityBytes, out availableBytes);
             var DefaultVirtualDiskFolder = JsonConvert.SerializeObject(WmiCalls.GetDefaultVirtualDiskFolder());
             string expected =
-                #region string_literal
-                        "[{\"" + CloudStackTypes.StartupRoutingCommand + "\":{" +
+            #region string_literal
+                    "[{\"" + CloudStackTypes.StartupRoutingCommand + "\":{" +
                         "\"cpus\":" + cores + "," +
                         "\"speed\":" + mhz + "," +
                         "\"memory\":" + memory_mb + "," +
-                        "\"dom0MinMemory\":" + (AgentSettings.Default.dom0MinMemory *1024 * 1024) + "," +
+                        "\"dom0MinMemory\":" + (AgentSettings.Default.dom0MinMemory * 1024 * 1024) + "," +
                         "\"poolSync\":false," +
                         "\"vms\":{}," +
                         "\"hypervisorType\":\"Hyperv\"," +
@@ -875,7 +954,7 @@ namespace ServerResource.Tests
                         "\"guid\":\"16f85622-4508-415e-b13a-49a39bb14e4d\"," +
                         "\"name\":\"localhost\"," +
                         "\"version\":\"4.2.0\"," +
-                        "\"privateIpAddress\":\""+AgentSettings.Default.private_ip_address+"\"," +
+                        "\"privateIpAddress\":\"" + AgentSettings.Default.private_ip_address + "\"," +
                         "\"storageIpAddress\":\"" + AgentSettings.Default.private_ip_address + "\"," +
                         "\"contextMap\":{}," +
                         "\"wait\":0," +
@@ -884,29 +963,30 @@ namespace ServerResource.Tests
                         "\"storageNetmask\":\"" + AgentSettings.Default.private_ip_netmask + "\"," +
                         "\"storageMacAddress\":\"" + AgentSettings.Default.private_mac_address + "\"," +
                         "\"gatewayIpAddress\":\"" + AgentSettings.Default.gateway_ip_address + "\"" +
+                        ",\"caps\":\"hvm\"" +
                         "}}," +
                         "{\"com.cloud.agent.api.StartupStorageCommand\":{" +
                         "\"poolInfo\":{" +
                             "\"uuid\":\"16f85622-4508-415e-b13a-49a39bb14e4d\"," +
-                            "\"host\":\""+AgentSettings.Default.private_ip_address+"\"," +
+                            "\"host\":\"" + AgentSettings.Default.private_ip_address + "\"," +
                             "\"localPath\":" + DefaultVirtualDiskFolder + "," +
                             "\"hostPath\":" + DefaultVirtualDiskFolder + "," +
                             "\"poolType\":\"Filesystem\"," +
                             "\"capacityBytes\":" + capacityBytes + "," +
-                            "\"availableBytes\":" + (capacityBytes-availableBytes) + "," +
+                            "\"availableBytes\":" + availableBytes + "," +
                             "\"details\":null" +
                         "}," +
                         "\"guid\":\"16f85622-4508-415e-b13a-49a39bb14e4d\"," +
                         "\"dataCenter\":\"1\"," +
                         "\"resourceType\":\"STORAGE_POOL\"" +
                         "}}]";
-                #endregion
+            #endregion
 
             dynamic jsonArray = JsonConvert.DeserializeObject(sampleStartupRoutingCommand);
 
             // Act
             dynamic jsonResult = controller.StartupCommand(jsonArray);
-            
+
             // Assert
             string actual = JsonConvert.SerializeObject(jsonResult);
             Assert.AreEqual(expected, actual, "StartupRoutingCommand not populated properly");

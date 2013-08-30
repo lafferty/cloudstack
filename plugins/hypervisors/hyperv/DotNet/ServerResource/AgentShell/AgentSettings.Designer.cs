@@ -34,15 +34,6 @@ namespace CloudStack.Plugin.AgentShell {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("10.70.176.29")]
-        public string private_ip_address {
-            get {
-                return ((string)(this["private_ip_address"]));
-            }
-        }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("Routing")]
         public string type {
             get {
@@ -115,7 +106,7 @@ namespace CloudStack.Plugin.AgentShell {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("10.70.176.1")]
+        [global::System.Configuration.DefaultSettingValueAttribute("10.1.1.1")]
         public string gateway_ip_address {
             get {
                 return ((string)(this["gateway_ip_address"]));
@@ -340,6 +331,40 @@ namespace CloudStack.Plugin.AgentShell {
         public ulong dom0MinMemory {
             get {
                 return ((ulong)(this["dom0MinMemory"]));
+            }
+        }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("10.1.1.1")]
+        public string private_ip_address {
+            get {
+                return ((string)(this["private_ip_address"]));
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("cifs://10.1.1.1/secondary?user\\u003dadministrator\\u0026password\\u003d1pass%40w" +
+            "ord1")]
+        public string testCifsUrl {
+            get {
+                return ((string)(this["testCifsUrl"]));
+            }
+            set {
+                this["testCifsUrl"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("template/tmpl/2/201/61d5316a-3cc4-30cf-a557-78691ff5c143.vhd")]
+        public string testCifsPath {
+            get {
+                return ((string)(this["testCifsPath"]));
+            }
+            set {
+                this["testCifsPath"] = value;
             }
         }
     }

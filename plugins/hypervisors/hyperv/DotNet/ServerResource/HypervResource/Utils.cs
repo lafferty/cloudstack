@@ -14,10 +14,14 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+using log4net;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -25,6 +29,8 @@ namespace HypervResource
 {
     public class Utils
     {
+        private static ILog s_logger = LogManager.GetLogger(typeof(Utils));
+
         /// <summary>
         /// Associate CloudStack object's content with a fully qualified type name.
         /// </summary>
@@ -38,5 +44,67 @@ namespace HypervResource
 
             return new JObject(objTypeValuePairing);
         }
+
+
+        /// <summary>
+        /// Copy file on network share to local volume.
+        /// </summary>
+        /// <remarks>
+        /// Access to the network share is acheived by logging into the domain corresponding to the user credentials provided.
+        /// Windows impersonation does not suffice, because impersonation is limited to domains with an established trust relationship.
+        /// We have had to import Win32 API calls to allow login.  There are a number of examples online.  We follow the
+        /// one at http://stackoverflow.com/a/2541569/939250 </remarks>
+        /// <param name="filePathRelativeToShare"></param>
+        /// <param name="cifsShareDetails"></param>
+        /// <param name="destFile"></param>
+        public static void DownloadCifsFileToLocalFile(string filePathRelativeToShare, NFSTO cifsShareDetails, string destFile)
+        {
+            try
+            {
+                IntPtr token = IntPtr.Zero;
+
+                bool isSuccess = LogonUser(cifsShareDetails.User, cifsShareDetails.Domain, cifsShareDetails.Password, LOGON32_LOGON_NEW_CREDENTIALS, LOGON32_PROVIDER_DEFAULT, ref token);
+                using (WindowsImpersonationContext remoteIdentity = new WindowsIdentity(token).Impersonate())
+                {
+                    String dest = Path.Combine(cifsShareDetails.UncPath, filePathRelativeToShare);
+                    s_logger.Info(CloudStackTypes.CopyCommand + ": copy " + Path.Combine(cifsShareDetails.UncPath, filePathRelativeToShare) + " to " + destFile);
+
+                    File.Copy(dest, destFile, true);
+                    remoteIdentity.Undo();
+                }
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                string errMsg = "Invalid user or password for the share " + cifsShareDetails.UncPath;
+                s_logger.Error(errMsg);
+
+                throw new ArgumentException(errMsg, ex);
+            }
+        }
+
+        // from http://stackoverflow.com/a/2541569/939250
+        #region imports
+        [DllImport("advapi32.dll", SetLastError = true)]
+        private static extern bool LogonUser(string lpszUsername, string lpszDomain, string lpszPassword, int dwLogonType, int dwLogonProvider, ref IntPtr phToken);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr handle);
+
+        [DllImport("advapi32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        public extern static bool DuplicateToken(IntPtr existingTokenHandle, int SECURITY_IMPERSONATION_LEVEL, ref IntPtr duplicateTokenHandle);
+        #endregion
+
+        #region logon consts
+        // logon types 
+        const int LOGON32_LOGON_INTERACTIVE = 2;
+        const int LOGON32_LOGON_NETWORK = 3;
+        const int LOGON32_LOGON_NEW_CREDENTIALS = 9;
+
+        // logon providers 
+        const int LOGON32_PROVIDER_DEFAULT = 0;
+        const int LOGON32_PROVIDER_WINNT50 = 3;
+        const int LOGON32_PROVIDER_WINNT40 = 2;
+        const int LOGON32_PROVIDER_WINNT35 = 1;
+        #endregion
     }
 }

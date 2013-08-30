@@ -1,5 +1,4 @@
-﻿using log4net;
-// Licensed to the Apache Software Foundation (ASF) under one
+﻿// Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
 // regarding copyright ownership.  The ASF licenses this file
@@ -15,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+using log4net;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -62,7 +62,7 @@ namespace HypervResource
             get
             {
                 String result = Path.Combine(this.primaryDataStore.path, this.name);
-                if ( this.format != null)
+                if (this.format != null)
                 {
                     result = result + "." + this.format.ToLowerInvariant();
                 }
@@ -74,7 +74,6 @@ namespace HypervResource
         public string format;
         public string name;
         public string uuid;
-//        public S3TO s3DataStoreTO;
         public PrimaryDataStoreTO primaryDataStore;
 
         public static VolumeObjectTO ParseJson(dynamic json)
@@ -96,7 +95,6 @@ namespace HypervResource
                     name = (string)volumeObjectTOJson.name,
                     uuid = (string)volumeObjectTOJson.uuid
                 };
- //               result.s3DataStoreTO = S3TO.ParseJson(volumeObjectTOJson.dataStore);
                 result.primaryDataStore = PrimaryDataStoreTO.ParseJson(volumeObjectTOJson.dataStore);
 
                 // Assert
@@ -158,6 +156,7 @@ namespace HypervResource
         public string name;
         public string uuid;
         public S3TO s3DataStoreTO = null;
+        public NFSTO nfsDataStoreTO = null;
         public PrimaryDataStoreTO primaryDataStore = null;
         public string path;
         public string checksum;
@@ -178,6 +177,7 @@ namespace HypervResource
                     checksum = (string)templateObjectTOJson.checksum
                 };
                 result.s3DataStoreTO = S3TO.ParseJson(templateObjectTOJson.imageDataStore);
+                result.nfsDataStoreTO = NFSTO.ParseJson(templateObjectTOJson.imageDataStore);
                 result.primaryDataStore = PrimaryDataStoreTO.ParseJson(templateObjectTOJson.imageDataStore);
             }
 
@@ -215,97 +215,165 @@ namespace HypervResource
         }
     }
 
-
-        enum VolumeType
+    public class NFSTO
+    {
+        public Uri uri;
+        public string _role;
+        public string UncPath
         {
-            UNKNOWN, ROOT, SWAP, DATADISK, ISO
-        };
-
-        public enum StoragePoolType {
-            /// <summary>
-            /// local directory
-            /// </summary>
-            Filesystem,         
-            /// <summary>
-            /// NFS or CIFS 
-            /// </summary>
-            NetworkFilesystem,  
-            /// <summary>
-            /// shared LUN, with a clusterfs overlay 
-            /// </summary>
-            IscsiLUN,           
-            /// <summary>
-            /// for e.g., ZFS Comstar 
-            /// </summary>
-            Iscsi,              
-            /// <summary>
-            /// for iso image
-            /// </summary>
-            ISO,                
-            /// <summary>
-            /// XenServer local LVM SR
-            /// </summary>
-            LVM, 
-            /// <summary>
-            /// 
-            /// </summary>
-            CLVM, 
-            /// <summary>
-            /// 
-            /// </summary>
-            RBD, 
-            /// <summary>
-            /// 
-            /// </summary>
-            SharedMountPoint, 
-            /// <summary>
-            /// VMware VMFS storage 
-            /// </summary>
-            VMFS, 
-            /// <summary>
-            /// for XenServer, Storage Pool is set up by customers. 
-            /// </summary>
-            PreSetup, 
-            /// <summary>
-            /// XenServer local EXT SR 
-            /// </summary>
-            EXT, 
-            /// <summary>
-            /// 
-            /// </summary>
-            OCFS2
-    }
-
-        public enum StorageResourceType
-        {
-            STORAGE_POOL, STORAGE_HOST, SECONDARY_STORAGE, LOCAL_SECONDARY_STORAGE
-        }
-
-        public struct VolumeInfo
-        {
-            public long id;
-            public string type;
-            public string storagePoolType;
-            public string storagePoolUuid;
-            public string name;
-            public string mountPoint;
-            public string path;
-            long size;
-            string chainInfo;
-
-            public VolumeInfo(long id, string type, string poolType, String poolUuid, String name, String mountPoint, String path, long size, String chainInfo)
+            get
             {
-                this.id = id;
-                this.name = name;
-                this.path = path;
-                this.size = size;
-                this.type = type;
-                this.storagePoolType = poolType;
-                this.storagePoolUuid = poolUuid;
-                this.mountPoint = mountPoint;
-                this.chainInfo = chainInfo;
+                string uncPath = null;
+                if (uri.Scheme.Equals("cifs"))
+                {
+                    uncPath = @"\\" + uri.Host + uri.LocalPath;
+                }
+                return uncPath;
             }
         }
+        public string User
+        {
+            get
+            {
+                var queryDictionary = System.Web.HttpUtility.ParseQueryString(uri.Query);
+                return System.Web.HttpUtility.UrlDecode(queryDictionary["user"]);
+            }
+        }
+
+        public string Password
+        {
+            get
+            {
+                var queryDictionary = System.Web.HttpUtility.ParseQueryString(uri.Query);
+                return System.Web.HttpUtility.UrlDecode(queryDictionary["password"]);
+            }
+        }
+
+        public string Domain
+        {
+            get
+            {
+                var queryDictionary = System.Web.HttpUtility.ParseQueryString(uri.Query);
+                if (queryDictionary["domain"] != null)
+                {
+                    return System.Web.HttpUtility.UrlDecode(queryDictionary["domain"]);
+                }
+                else return uri.Host;
+            }
+        }
+        public static NFSTO ParseJson(dynamic json)
+        {
+            NFSTO result = null;
+            dynamic nfsTOJson = json[CloudStackTypes.NFSTO];
+            if (nfsTOJson != null)
+            {
+                result = new NFSTO()
+                {
+                    _role = (string)nfsTOJson._role,
+                };
+                // Delete security credentials in original command.  Prevents logger from spilling the beans, as it were.
+                String uriStr = (String)nfsTOJson._url;
+                result.uri = new Uri(uriStr);
+            }
+            return result;
+        }
+    }
+
+    enum VolumeType
+    {
+        UNKNOWN,
+        ROOT,
+        SWAP,
+        DATADISK,
+        ISO
+    };
+
+    public enum StoragePoolType
+    {
+        /// <summary>
+        /// local directory
+        /// </summary>
+        Filesystem,
+        /// <summary>
+        /// NFS or CIFS 
+        /// </summary>
+        NetworkFilesystem,
+        /// <summary>
+        /// shared LUN, with a clusterfs overlay 
+        /// </summary>
+        IscsiLUN,
+        /// <summary>
+        /// for e.g., ZFS Comstar 
+        /// </summary>
+        Iscsi,
+        /// <summary>
+        /// for iso image
+        /// </summary>
+        ISO,
+        /// <summary>
+        /// XenServer local LVM SR
+        /// </summary>
+        LVM,
+        /// <summary>
+        /// 
+        /// </summary>
+        CLVM,
+        /// <summary>
+        /// 
+        /// </summary>
+        RBD,
+        /// <summary>
+        /// 
+        /// </summary>
+        SharedMountPoint,
+        /// <summary>
+        /// VMware VMFS storage 
+        /// </summary>
+        VMFS,
+        /// <summary>
+        /// for XenServer, Storage Pool is set up by customers. 
+        /// </summary>
+        PreSetup,
+        /// <summary>
+        /// XenServer local EXT SR 
+        /// </summary>
+        EXT,
+        /// <summary>
+        /// 
+        /// </summary>
+        OCFS2
+    }
+
+    public enum StorageResourceType
+    {
+        STORAGE_POOL, STORAGE_HOST, SECONDARY_STORAGE, LOCAL_SECONDARY_STORAGE
+    }
+
+    public struct VolumeInfo
+    {
+        public long id;
+        public string type;
+        public string storagePoolType;
+        public string storagePoolUuid;
+        public string name;
+        public string mountPoint;
+        public string path;
+        long size;
+        string chainInfo;
+
+        public VolumeInfo(long id, string type, string poolType, String poolUuid, String name, String mountPoint, String path, long size, String chainInfo)
+        {
+            this.id = id;
+            this.name = name;
+            this.path = path;
+            this.size = size;
+            this.type = type;
+            this.storagePoolType = poolType;
+            this.storagePoolUuid = poolUuid;
+            this.mountPoint = mountPoint;
+            this.chainInfo = chainInfo;
+        }
+    }
 
     public struct StoragePoolInfo
     {
@@ -344,7 +412,8 @@ namespace HypervResource
 
         public StoragePoolInfo(String uuid, String host, String hostPath,
                 String localPath, string poolType, long capacityBytes,
-                long availableBytes, Dictionary<String, String> details) : this(uuid, host, hostPath, localPath, poolType, capacityBytes, availableBytes)
+                long availableBytes, Dictionary<String, String> details)
+            : this(uuid, host, hostPath, localPath, poolType, capacityBytes, availableBytes)
         {
             this.details = details;
         }
@@ -514,6 +583,7 @@ namespace HypervResource
         public const string NicTO = "com.cloud.agent.api.to.NicTO";
         public const string PortForwardingRuleTO = "com.cloud.agent.api.to.PortForwardingRuleTO";
         public const string S3TO = "com.cloud.agent.api.to.S3TO";
+        public const string NFSTO = "com.cloud.agent.api.to.NfsTO";
         public const string StaticNatRuleTO = "com.cloud.agent.api.to.StaticNatRuleTO";
         public const string StorageFilerTO = "com.cloud.agent.api.to.StorageFilerTO";
         public const string SwiftTO = "com.cloud.agent.api.to.SwiftTO";

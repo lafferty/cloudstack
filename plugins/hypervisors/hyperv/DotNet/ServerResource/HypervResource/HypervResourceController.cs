@@ -1,7 +1,4 @@
-﻿using Amazon;
-using Amazon.S3;
-using Amazon.S3.Model;
-// Licensed to the Apache Software Foundation (ASF) under one
+﻿// Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
 // regarding copyright ownership.  The ASF licenses this file
@@ -18,6 +15,9 @@ using Amazon.S3.Model;
 // specific language governing permissions and limitations
 // under the License.
 
+using Amazon;
+using Amazon.S3;
+using Amazon.S3.Model;
 using CloudStack.Plugin.WmiWrappers.ROOT.VIRTUALIZATION;
 using log4net;
 using Microsoft.CSharp.RuntimeBinder;
@@ -30,6 +30,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using System.Web.Http;
 
 namespace HypervResource
@@ -118,7 +119,7 @@ namespace HypervResource
         // GET api/HypervResource
         public string Get()
         {
-            using(log4net.NDC.Push(Guid.NewGuid().ToString()))
+            using (log4net.NDC.Push(Guid.NewGuid().ToString()))
             {
                 return "HypervResource controller running, use POST to send JSON encoded RPCs"; ;
             }
@@ -453,17 +454,17 @@ namespace HypervResource
             Uri source = new Uri(sourceUri);
             String destFilePath = Path.Combine(poolLocalPath, newCopyFileName);
             string[] pathSegments = source.Segments;
-            String templateUUIDandExtension = pathSegments[pathSegments.Length-1];
+            String templateUUIDandExtension = pathSegments[pathSegments.Length - 1];
             newFile = new FileInfo(destFilePath);
 
             // NFS URI assumed to already be mounted locally.  Mount location given by settings.
-        	if (source.Scheme.ToLower().Equals("nfs"))
-        	{
-            	String srcDiskPath = Path.Combine(HypervResourceController.config.LocalSecondaryStoragePath, templateUUIDandExtension);
-            	String taskMsg = "Copy NFS url in " + sourceUri + " at " + srcDiskPath + " to pool " + poolLocalPath;
+            if (source.Scheme.ToLower().Equals("nfs"))
+            {
+                String srcDiskPath = Path.Combine(HypervResourceController.config.LocalSecondaryStoragePath, templateUUIDandExtension);
+                String taskMsg = "Copy NFS url in " + sourceUri + " at " + srcDiskPath + " to pool " + poolLocalPath;
                 logger.Debug(taskMsg);
                 File.Copy(srcDiskPath, destFilePath);
-        	}
+            }
             else if (source.Scheme.ToLower().Equals("http") || source.Scheme.ToLower().Equals("https"))
             {
                 System.Net.WebClient webclient = new WebClient();
@@ -720,7 +721,7 @@ namespace HypervResource
             }
 
         }
-        
+
         // POST api/HypervResource/StartCommand
         [HttpPost]
         [ActionName(CloudStackTypes.StartCommand)]
@@ -945,8 +946,8 @@ namespace HypervResource
                     logger.Info(CloudStackTypes.CopyCommand + cmd.ToString());
 
                     // Already exists?
-                    if (destTemplateObjectTO != null && 
-                        File.Exists(destTemplateObjectTO.FullFileName) && 
+                    if (destTemplateObjectTO != null &&
+                        File.Exists(destTemplateObjectTO.FullFileName) &&
                         !String.IsNullOrEmpty(destTemplateObjectTO.checksum))
                     {
                         // TODO: checksum fails us, because it is of the compressed image.
@@ -955,13 +956,14 @@ namespace HypervResource
                     }
 
                     // Do we have to create a new one?
-                    if ( !result )
+                    if (!result)
                     {
                         // Create local copy of a template?
                         if (srcTemplateObjectTO != null && destTemplateObjectTO != null)
                         {
                             // S3 download to primary storage?
-                            if (srcTemplateObjectTO.s3DataStoreTO != null && destTemplateObjectTO.primaryDataStore != null)
+                            // NFS provider download to primary storage?
+                            if ((srcTemplateObjectTO.s3DataStoreTO != null || srcTemplateObjectTO.nfsDataStoreTO != null) && destTemplateObjectTO.primaryDataStore != null)
                             {
                                 string destFile = destTemplateObjectTO.FullFileName;
 
@@ -971,8 +973,16 @@ namespace HypervResource
                                     File.Delete(destFile);
                                 }
 
-                                // Download from S3 to destination data storage
-                                DownloadS3ObjectToFile(srcTemplateObjectTO.path, srcTemplateObjectTO.s3DataStoreTO, destFile);
+                                if (srcTemplateObjectTO.s3DataStoreTO != null)
+                                {
+                                    // Download from S3 to destination data storage
+                                    DownloadS3ObjectToFile(srcTemplateObjectTO.path, srcTemplateObjectTO.s3DataStoreTO, destFile);
+                                }
+                                else if (srcTemplateObjectTO.nfsDataStoreTO != null)
+                                {
+                                    // Download from S3 to destination data storage
+                                    Utils.DownloadCifsFileToLocalFile(srcTemplateObjectTO.path, srcTemplateObjectTO.nfsDataStoreTO, destFile);
+                                }
 
                                 // Uncompress, as required
                                 if (srcTemplateObjectTO.path.EndsWith(".bz2"))
@@ -1149,7 +1159,6 @@ namespace HypervResource
             }
         }
 
-
         // POST api/HypervResource/GetStorageStatsCommand
         [HttpPost]
         [ActionName(CloudStackTypes.GetStorageStatsCommand)]
@@ -1311,7 +1320,7 @@ namespace HypervResource
                     long available;
                     GetCapacityForLocalPath(localStoragePath, out capacity, out available);
 
-                    logger.Debug(CloudStackTypes.StartupStorageCommand + " set available bytes to " + available); 
+                    logger.Debug(CloudStackTypes.StartupStorageCommand + " set available bytes to " + available);
 
                     string ipAddr = strtRouteCmd.privateIpAddress;
                     StoragePoolInfo pi = new StoragePoolInfo(

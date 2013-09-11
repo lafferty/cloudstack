@@ -806,7 +806,7 @@ namespace ServerResource.Tests
             // HostExchangesItems are embedded objects in the sense that the object value is stored and not a reference to the object.
             kvpProps = kvpInfo.HostExchangeItems;
 
-            // If the value already exists, delete it
+            // Look for value 
             bool userDataInPlace = false;
             foreach (var item in kvpProps)
             {
@@ -817,7 +817,7 @@ namespace ServerResource.Tests
 
                 if (existingKey == key && existingValue == value)
                 {
-                    WmiCallsV2.DeleteHostKvpItem(vm, existingKey);
+//                    WmiCallsV2.DeleteHostKvpItem(vm, existingKey);
                     userDataInPlace = true;
                     break;
                 }
